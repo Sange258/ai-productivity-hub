@@ -37,8 +37,9 @@ function ChatThread() {
     setInitialMessages(null);
     (async () => {
       try {
-        const rows = await load({ data: { threadId } });
-        if (!cancelled) setInitialMessages(rows);
+        const res = await load({ data: { threadId } });
+        const rows = JSON.parse(res.messages) as Array<{ content: UIMessage }>;
+        if (!cancelled) setInitialMessages(rows.map((r) => r.content));
       } catch (e) {
         toast.error(e instanceof Error ? e.message : "Failed to load messages");
         if (!cancelled) setInitialMessages([]);
@@ -85,10 +86,9 @@ function ChatInner({
     prepareSendMessagesRequest: async ({ messages, id }) => {
       const { data } = await supabase.auth.getSession();
       const token = data.session?.access_token;
-      return {
-        body: { messages, threadId: id },
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      };
+      const headers: Record<string, string> = {};
+      if (token) headers.Authorization = `Bearer ${token}`;
+      return { body: { messages, threadId: id }, headers };
     },
   });
 
@@ -103,8 +103,8 @@ function ChatInner({
     inputRef.current?.focus();
   }, [threadId, status, inputRef]);
 
-  const onSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const onSubmit = async (_msg: unknown, e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault?.();
     if (!text.trim() || status === "submitted" || status === "streaming") return;
     const value = text;
     setText("");
